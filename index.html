@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Cursed Empire</title>
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    overflow: hidden;
+    background: #171020;
+    font-family: Georgia, serif;
+}
+
+canvas {
+    display: block;
+}
+
+#gameTitle {
+    position: fixed;
+    top: 22px;
+    left: 25px;
+    color: #f4d58a;
+    font-size: 25px;
+    letter-spacing: 3px;
+    text-shadow: 0 0 15px #b67aff;
+    pointer-events: none;
+}
+
+#instructions {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 22px;
+    border: 1px solid #b58bdb;
+    border-radius: 12px;
+    background: rgba(17, 10, 30, 0.8);
+    color: #fff0d0;
+    font: 14px Arial, sans-serif;
+    text-align: center;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+#loading {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #f4d58a;
+    background: #171020;
+    z-index: 5;
+    font: 20px Georgia, serif;
+}
+</style>
+
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+    }
+}
+</script>
+</head>
+
+<body>
+
+<div id="loading">Awakening the Cursed Empire...</div>
+<div id="gameTitle">THE CURSED EMPIRE</div>
+<div id="instructions">
+    W A S D — Move &nbsp; | &nbsp;
+    Mouse — Explore camera &nbsp; | &nbsp;
+    Scroll — Zoom
+</div>
+
+<script type="module">
+
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ============================================
+// 1. CREATE THE WORLD
+// ============================================
+
+const scene = new THREE.Scene();
+
+scene.background = new THREE.Color(0x777ba1);
+
+scene.fog = new THREE.FogExp2(
+    0x777ba1,
+    0.008
+);
+
+// ============================================
+// 2. CAMERA
+// ============================================
+
+const camera = new THREE.PerspectiveCamera(
+    65,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    500
+);
+
+camera.position.set(0, 6, 14);
+
+// ============================================
+// 3. RENDERER
+// ============================================
+
+const renderer = new THREE.WebGLRenderer({
+    antialias: true
+});
+
+renderer.setSize(
+    window.innerWidth,
+    window.innerHeight
+);
+
+renderer.setPixelRatio(
+    Math.min(window.devicePixelRatio, 2)
+);
+
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.25;
+
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+document.body.appendChild(renderer.domElement);
+
+// ============================================
+// 4. LIGHTING
+// ============================================
+
+const ambientLight = new THREE.HemisphereLight(
+    0xffe9ce,
+    0x29213d,
+    2
+);
+
+scene.add(ambientLight);
+
+const sunlight = new THREE.DirectionalLight(
+    0xffd39b,
+    3.5
+);
+
+sunlight.position.set(-15, 25, 12);
+sunlight.castShadow = true;
+
+sunlight.shadow.mapSize.set(2048, 2048);
+
+sunlight.shadow.camera.left = -45;
+sunlight.shadow.camera.right = 45;
+sunlight.shadow.camera.top = 45;
+sunlight.shadow.camera.bottom = -45;
+
+scene.add(sunlight);
+
+const purpleLight = new THREE.PointLight(
+    0x984bff,
+    35,
+    35
+);
+
+purpleLight.position.set(0, 7, -15);
+scene.add(purpleLight);
+
+// ============================================
+// 5. MATERIALS
+// ============================================
+
+const goldMaterial = new THREE.MeshStandardMaterial({
+    color: 0xd6a83d,
+    metalness: 0.7,
+    roughness: 0.3
+});
+
+const stoneMaterial = new THREE.MeshStandardMaterial({
+    color: 0x61566c,
+    roughness: 0.95
+});
+
+const darkStoneMaterial = new THREE.MeshStandardMaterial({
+    color: 0x302b3d,
+    roughness: 0.9
+});
+
+const leafMaterial = new THREE.MeshStandardMaterial({
+    color: 0x28543c,
+    roughness: 0.95
+});
+
+const darkLeafMaterial = new THREE.MeshStandardMaterial({
+    color: 0x142c27,
+    roughness: 1
+});
+
+const waterMaterial = new THREE.MeshStandardMaterial({
+    color: 0x25c6d0,
+    emissive: 0x07566b,
+    emissiveIntensity: 0.6,
+    metalness: 0.35,
+    roughness: 0.2
+});
+
+// ============================================
+// 6. SKY DOME
+// ============================================
+
+const sky = new THREE.Mesh(
+    new THREE.SphereGeometry(180, 32, 20),
+    new THREE.MeshBasicMaterial({
+        color: 0x777ba1,
+        side: THREE.BackSide
+    })
+);
+
+scene.add(sky);
+
+// ============================================
+// 7. ANCIENT GROUND
+// ============================================
+
+const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(120, 120),
+    new THREE.MeshStandardMaterial({
+        color: 0x625a4b,
+        roughness: 1
+    })
+);
+
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+
+scene.add(ground);
+
+// Ancient stone pathway
+const path = new THREE.Mesh(
+    new THREE.BoxGeometry(5, 0.12, 40),
+    new THREE.MeshStandardMaterial({
+        color: 0x81725f,
+        roughness: 1
+    })
+);
+
+path.position.set(0, 0.04, -13);
+scene.add(path);
+
+// ============================================
+// 8. MOUNTAINS
+// ============================================
+
+function createMountain(x, z, height, width) {
+
+    const mountain = new THREE.Group();
+
+    const base = new THREE.Mesh(
+        new THREE.ConeGeometry(width, height, 8),
+        darkStoneMaterial
+    );
+
+    base.position.y = height / 2;
+    base.castShadow = true;
+
+    mountain.add(base);
+
+    const peak = new THREE.Mesh(
+        new THREE.ConeGeometry(
+            width * 0.38,
+            height * 0.3,
+            8
+        ),
+        stoneMaterial
+    );
+
+    peak.position.y = height * 0.82;
+
+    mountain.add(peak);
+
+    mountain.position.set(x, 0, z);
+
+    scene.add(mountain);
+}
+
+createMountain(-35, -35, 26, 15);
+createMountain(-20, -45, 32, 16);
+createMountain(0, -50, 38, 19);
+createMountain(23, -43, 30, 15);
+createMountain(39, -30, 25, 14);
+
+createMountain(-42, 0, 23, 13);
+createMountain(42, 5, 25, 14);
+
+// ============================================
+// 9. ENCHANTED FOREST
+// ============================================
+
+function createTree(x, z, size = 1) {
+
+    const tree = new THREE.Group();
+
+    // Trunk
+    const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(
+            0.25 * size,
+            0.45 * size,
+            3.5 * size,
+            10
+        ),
+        darkStoneMaterial
+    );
+
+    trunk.position.y = 1.75 * size;
+    trunk.castShadow = true;
+
+    tree.add(trunk);
+
+    // Lower leaves
+    const lowerLeaves = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(
+            1.6 * size,
+            1
+        ),
+        darkLeafMaterial
+    );
+
+    lowerLeaves.position.y = 3.6 * size;
+    lowerLeaves.castShadow = true;
+
+    tree.add(lowerLeaves);
+
+    // Upper leaves
+    const upperLeaves = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(
+            1.2 * size,
+            1
+        ),
+        leafMaterial
+    );
+
+    upperLeaves.position.y = 4.8 * size;
+    upperLeaves.castShadow = true;
+
+    tree.add(upperLeaves);
+
+    tree.position.set(x, 0, z);
+
+    scene.add(tree);
+
+    return tree;
+}
+
+// Left forest
+for (let i = 0; i < 24; i++) {
+
+    const x = -12 - Math.random() * 15;
+    const z = 15 - Math.random() * 55;
+    const size = 0.8 + Math.random() * 0.8;
+
+    createTree(x, z, size);
+}
+
+// Right forest
+for (let i = 0; i < 24; i++) {
+
+    const x = 12 + Math.random() * 15;
+    const z = 15 - Math.random() * 55;
+    const size = 0.8 + Math.random() * 0.8;
+
+    createTree(x, z, size);
+}
+
+// ============================================
+// 10. MAGICAL RIVER
+// ============================================
+
+const riverCurve = new THREE.CatmullRomCurve3([
+
+    new THREE.Vector3(-30, 0.12, 14),
+    new THREE.Vector3(-24, 0.12, 8),
+    new THREE.Vector3(-19, 0.12, 0),
+    new THREE.Vector3(-21, 0.12, -10),
+    new THREE.Vector3(-17, 0.12, -20),
+    new THREE.Vector3(-8, 0.12, -34)
+
+]);
+
+function createRiver(curve, width) {
+
+    const vertices = [];
+    const indices = [];
+
+    const segments = 120;
+
+    for (let i = 0; i <= segments; i++) {
+
+        const t = i / segments;
+
+        const point = curve.getPoint(t);
+        const tangent = curve.getTangent(t);
+
+        const side = new THREE.Vector3(
+            -tangent.z,
+            0,
+            tangent.x
+        ).normalize();
+
+        const left = point.clone().addScaledVector(
+            side,
+            width
+        );
+
+        const right = point.clone().addScaledVector(
+            side,
+            -width
+        );
+
+        vertices.push(
+            left.x, left.y, left.z,
+            right.x, right.y, right.z
+        );
+
+        if (i < segments) {
+
+            const a = i * 2;
+            const b = a + 1;
+            const c = a + 2;
+            const d = a + 3;
+
+            indices.push(a, b, c);
+            indices.push(b, d, c);
+        }
+    }
+
+    const geometry = new THREE.BufferGeometry();
+
+    geometry.setAttribute(
+        'position',
+        new THREE.Float32BufferAttribute(vertices, 3)
+    );
+
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+
+    const river = new THREE.Mesh(
+        geometry,
+        waterMaterial
+    );
+
+    river.material.side = THREE.DoubleSide;
+    river.receiveShadow = true;
+
+    scene.add(river);
+
+    return river;
+}
+
+const river = createRiver(riverCurve, 1.8);
+
+// ============================================
+// 11. GOTHIC CASTLE
+// ============================================
+
+const castle = new THREE.Group();
+
+// Main castle
+const castleBody = new THREE.Mesh(
+    new THREE.BoxGeometry(15, 10, 6),
+    darkStoneMaterial
+);
+
+castleBody.position.set(0, 5, -30);
+castleBody.castShadow = true;
+
+castle.add(castleBody);
+
+// Front entrance
+const castleDoor = new THREE.Mesh(
+    new THREE.BoxGeometry(2.5, 4.5, 0.35),
+    goldMaterial
+);
+
+castleDoor.position.set(0, 2.25, -26.85);
+
+castle.add(castleDoor);
+
+// Castle tower creator
+function createTower(x, z, height) {
+
+    const tower = new THREE.Group();
+
+    const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(
+            1.5, 1.8, height, 12
+        ),
+        stoneMaterial
+    );
+
+    base.position.y = height / 2;
+    base.castShadow = true;
+
+    tower.add(base);
+
+    const roof = new THREE.Mesh(
+        new THREE.ConeGeometry(2.1, 3.5, 12),
+        darkStoneMaterial
+    );
+
+    roof.position.y = height + 1.75;
+
+    tower.add(roof);
+
+    const tip = new THREE.Mesh(
+        new THREE.SphereGeometry(0.2, 12, 12),
+        goldMaterial
+    );
+
+    tip.position.y = height + 3.6;
+
+    tower.add(tip);
+
+    tower.position.set(x, 0, z);
+
+    castle.add(tower);
+}
+
+createTower(-7, -30, 12);
+createTower(7, -30, 12);
+createTower(-7, -33, 8);
+createTower(7, -33, 8);
+
+// Castle windows
+const windowMaterial = new THREE.MeshStandardMaterial({
+    color: 0x7b4fff,
+    emissive: 0x5222bd,
+    emissiveIntensity: 2
+});
+
+for (let i = 0; i < 5; i++) {
+
+    const castleWindow = new THREE.Mesh(
+        new THREE.BoxGeometry(0.6, 1.4, 0.15),
+        windowMaterial
+    );
+
+    castleWindow.position.set(
+        -5 + i * 2.5,
+        6,
+        -26.88
+    );
+
+    castle.add(castleWindow);
+}
+
+scene.add(castle);
+
+// ============================================
+// 12. ANCIENT GOLDEN TEMPLE
+// ============================================
+
+const temple = new THREE.Group();
+
+const templeBase = new THREE.Mesh(
+    new THREE.BoxGeometry(10, 1, 8),
+    stoneMaterial
+);
+
+templeBase.position.y = 0.5;
+temple.add(templeBase);
+
+const templeRoof = new THREE.Mesh(
+    new THREE.ConeGeometry(7, 3.5, 4),
+    goldMaterial
+);
+
+templeRoof.position.y = 8;
+templeRoof.rotation.y = Math.PI / 4;
+
+temple.add(templeRoof);
+
+// Temple pillars
+for (let i = 0; i < 5; i++) {
+
+    const pillar = new THREE.Mesh(
+        new THREE.CylinderGeometry(
+            0.35, 0.5, 6, 12
+        ),
+        goldMaterial
+    );
+
+    pillar.position.set(
+        -4 + i * 2,
+        3.5,
+        3
+    );
+
+    temple.add(pillar);
+}
+
+temple.position.set(-17, 0, -17);
+
+scene.add(temple);
+
+// ============================================
+// 13. MAGICAL CRYSTALS
+// ============================================
+
+const crystals = [];
+
+const crystalMaterial = new THREE.MeshStandardMaterial({
+    color: 0xa65aff,
+    emissive: 0x791fff,
+    emissiveIntensity: 2,
+    metalness: 0.4,
+    roughness: 0.2
+});
+
+function createCrystal(x, z) {
+
+    const crystal = new THREE.Mesh(
+        new THREE.OctahedronGeometry(0.7),
+        crystalMaterial
+    );
+
+    crystal.position.set(x, 1.5, z);
+    crystal.castShadow = true;
+
+    scene.add(crystal);
+
+    crystals.push(crystal);
+
+    const glow = new THREE.PointLight(
+        0x953dff,
+        8,
+        9
+    );
+
+    glow.position.set(x, 1.5, z);
+
+    scene.add(glow);
+}
+
+createCrystal(-11, 5);
+createCrystal(11, 0);
+createCrystal(-15, -10);
+createCrystal(15, -12);
+createCrystal(5, -18);
+
+// ============================================
+// 14. SMALL ANCIENT ROCKS
+// ============================================
+
+for (let i = 0; i < 35; i++) {
+
+    const rock = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(
+            0.4 + Math.random() * 0.7,
+            0
+        ),
+        stoneMaterial
+    );
+
+    rock.position.set(
+        (Math.random() - 0.5) * 65,
+        0.3,
+        (Math.random() - 0.5) * 65
+    );
+
+    rock.rotation.set(
+        Math.random(),
+        Math.random(),
+        Math.random()
+    );
+
+    rock.castShadow = true;
+
+    scene.add(rock);
+}
+
+// ============================================
+// 15. FEMALE TRAVELER
+// ============================================
+
+const traveler = new THREE.Group();
+
+scene.add(traveler);
+
+// Character materials
+const skinMaterial = new THREE.MeshStandardMaterial({
+    color: 0xb97855,
+    roughness: 0.85
+});
+
+const hairMaterial = new THREE.MeshStandardMaterial({
+    color: 0x211510,
+    roughness: 0.9
+});
+
+const jacketMaterial = new THREE.MeshStandardMaterial({
+    color: 0x70452d,
+    roughness: 0.85
+});
+
+const clothesMaterial = new THREE.MeshStandardMaterial({
+    color: 0x29212a,
+    roughness: 0.9
+});
+
+const leatherMaterial = new THREE.MeshStandardMaterial({
+    color: 0x49301f,
+    roughness: 0.9
+});
+
+const eyeMaterial = new THREE.MeshStandardMaterial({
+    color: 0x21130f
+});
+
+// Character helper
+function addPart(
+    geometry,
+    material,
+    x,
+    y,
+    z,
+    parent = traveler
+) {
+
+    const part = new THREE.Mesh(
+        geometry,
+        material
+    );
+
+    part.position.set(x, y, z);
+
+    part.castShadow = true;
+    part.receiveShadow = true;
+
+    parent.add(part);
+
+    return part;
+}
+
+// Body
+const body = addPart(
+    new THREE.CylinderGeometry(
+        0.35, 0.48, 1.05, 16
+    ),
+    jacketMaterial,
+    0, 1.55, 0
+);
+
+// Waist
+addPart(
+    new THREE.CylinderGeometry(
+        0.37, 0.38, 0.25, 16
+    ),
+    leatherMaterial,
+    0, 1, 0
+);
+
+// Head
+const head = addPart(
+    new THREE.SphereGeometry(0.38, 24, 24),
+    skinMaterial,
+    0, 2.35, 0
+);
+
+head.scale.set(0.85, 1.15, 0.85);
+
+// Hair
+const hair = addPart(
+    new THREE.SphereGeometry(0.39, 20, 16),
+    hairMaterial,
+    0, 2.59, 0.04
+);
+
+hair.scale.set(1.05, 0.85, 1.05);
+
+// Ponytail
+addPart(
+    new THREE.SphereGeometry(0.17, 12, 12),
+    hairMaterial,
+    0, 2.28, 0.34
+);
+
+// Eyes
+addPart(
+    new THREE.SphereGeometry(0.035, 10, 10),
+    eyeMaterial,
+    -0.12, 2.39, -0.315
+);
+
+addPart(
+    new THREE.SphereGeometry(0.035, 10, 10),
+    eyeMaterial,
+    0.12, 2.39, -0.315
+);
+
+// Bindi
+addPart(
+    new THREE.SphereGeometry(0.025, 10, 10),
+    new THREE.MeshStandardMaterial({
+        color: 0x8c1d32
+    }),
+    0, 2.57, -0.31
+);
+
+// Arms
+const leftArm = addPart(
+    new THREE.CylinderGeometry(
+        0.12, 0.15, 0.75, 12
+    ),
+    jacketMaterial,
+    -0.46, 1.55, 0
+);
+
+leftArm.rotation.z = -0.15;
+
+const rightArm = addPart(
+    new THREE.CylinderGeometry(
+        0.12, 0.15, 0.75, 12
+    ),
+    jacketMaterial,
+    0.46, 1.55, 0
+);
+
+rightArm.rotation.z = 0.15;
+
+// Hands
+addPart(
+    new THREE.SphereGeometry(0.13, 12, 12),
+    skinMaterial,
+    -0.51, 1.14, 0
+);
+
+addPart(
+    new THREE.SphereGeometry(0.13, 12, 12),
+    skinMaterial,
+    0.51, 1.14, 0
+);
+
+// Legs
+const leftLeg = addPart(
+    new THREE.CylinderGeometry(
+        0.17, 0.15, 0.85, 12
+    ),
+    clothesMaterial,
+    -0.2, 0.48, 0
+);
+
+const rightLeg = addPart(
+    new THREE.CylinderGeometry(
+        0.17, 0.15, 0.85, 12
+    ),
+    clothesMaterial,
+    0.2, 0.48, 0
+);
+
+// Boots
+addPart(
+    new THREE.BoxGeometry(0.3, 0.2, 0.48),
+    leatherMaterial,
+    -0.2, 0.12, -0.1
+);
+
+addPart(
+    new THREE.BoxGeometry(0.3, 0.2, 0.48),
+    leatherMaterial,
+    0.2, 0.12, -0.1
+);
+
+// Backpack
+addPart(
+    new THREE.BoxGeometry(0.65, 0.8, 0.35),
+    leatherMaterial,
+    0, 1.65, 0.43
+);
+
+// Backpack flap
+addPart(
+    new THREE.BoxGeometry(0.67, 0.15, 0.38),
+    jacketMaterial,
+    0, 2.07, 0.43
+);
+
+// Backpack buckle
+addPart(
+    new THREE.BoxGeometry(0.12, 0.12, 0.04),
+    goldMaterial,
+    0, 1.95, 0.63
+);
+
+// Ancient rolled map
+const mapRoll = addPart(
+    new THREE.CylinderGeometry(
+        0.07, 0.07, 0.65, 12
+    ),
+    new THREE.MeshStandardMaterial({
+        color: 0xe4c58a,
+        roughness: 1
+    }),
+    0.39, 1.68, 0.55
+);
+
+mapRoll.rotation.z = Math.PI / 2;
+
+// Binoculars
+const binocularMaterial = new THREE.MeshStandardMaterial({
+    color: 0x24202b,
+    metalness: 0.75,
+    roughness: 0.25
+});
+
+const lensLeft = addPart(
+    new THREE.CylinderGeometry(
+        0.065, 0.065, 0.22, 12
+    ),
+    binocularMaterial,
+    -0.09, 1.98, -0.36
+);
+
+lensLeft.rotation.x = Math.PI / 2;
+
+const lensRight = addPart(
+    new THREE.CylinderGeometry(
+        0.065, 0.065, 0.22, 12
+    ),
+    binocularMaterial,
+    0.09, 1.98, -0.36
+);
+
+lensRight.rotation.x = Math.PI / 2;
+
+// Starting position
+traveler.position.set(0, 0, 7);
+
+// ============================================
+// 16. CAMERA CONTROLS
+// ============================================
+
+const controls = new OrbitControls(
+    camera,
+    renderer.domElement
+);
+
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+
+controls.enablePan = false;
+
+controls.minDistance = 5;
+controls.maxDistance = 22;
+
+controls.maxPolarAngle = Math.PI / 2.05;
+
+controls.target.set(0, 1.5, 7);
+
+// ============================================
+// 17. KEYBOARD MOVEMENT
+// ============================================
+
+const keyboard = {};
+
+window.addEventListener('keydown', (event) => {
+
+    keyboard[event.key.toLowerCase()] = true;
+
+});
+
+window.addEventListener('keyup', (event) => {
+
+    keyboard[event.key.toLowerCase()] = false;
+
+});
+
+window.addEventListener('blur', () => {
+
+    Object.keys(keyboard).forEach(key => {
+        keyboard[key] = false;
+    });
+
+});
+
+// ============================================
+// 18. ANIMATION
+// ============================================
+
+const clock = new THREE.Clock();
+
+const previousPosition = traveler.position.clone();
+
+function animate() {
+
+    requestAnimationFrame(animate);
+
+    const delta = Math.min(
+        clock.getDelta(),
+        0.05
+    );
+
+    // Movement
+    let moveX = 0;
+    let moveZ = 0;
+
+    if (keyboard['w'] || keyboard['arrowup']) {
+        moveZ -= 1;
+    }
+
+    if (keyboard['s'] || keyboard['arrowdown']) {
+        moveZ += 1;
+    }
+
+    if (keyboard['a'] || keyboard['arrowleft']) {
+        moveX -= 1;
+    }
+
+    if (keyboard['d'] || keyboard['arrowright']) {
+        moveX += 1;
+    }
+
+    const length = Math.hypot(moveX, moveZ);
+
+    if (length > 0) {
+
+        moveX /= length;
+        moveZ /= length;
+
+        const speed = 4;
+
+        traveler.position.x += moveX * speed * delta;
+        traveler.position.z += moveZ * speed * delta;
+
+        traveler.rotation.y = Math.atan2(
+            moveX,
+            -moveZ
+        );
+
+    }
+
+    // Camera follows traveler
+    const movement = traveler.position.clone()
+        .sub(previousPosition);
+        camera.position.add(movement);
+    controls.target.add(movement);
+
+    previousPosition.copy(traveler.position);
+
+    // Crystal animation
+    crystals.forEach((crystal, index) => {
+
+        crystal.rotation.y += delta;
+        crystal.rotation.x += delta * 0.5;
+
+        crystal.position.y =
+            1.5 +
+            Math.sin(clock.elapsedTime * 2 + index) * 0.3;
+
+    });
+
+    // Water shimmer
+    waterMaterial.emissiveIntensity =
+        0.5 + Math.sin(clock.elapsedTime * 2) * 0.15;
+
+    controls.update();
+
+    renderer.render(scene, camera);
+}
+
+// ============================================
+// 19. START THE GAME
+
+// ============================================
+
+animate();
+
+document.getElementById('loading').style.display = 'none';
+
+// ============================================
+// 20. WINDOW RESIZE
+// ============================================
+
+window.addEventListener('resize', () => {
+
+    camera.aspect =
+        window.innerWidth / window.innerHeight;
+
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(
+        window.innerWidth,
+        window.innerHeight
+    );
+
+});
+</script>
+
+</body>
+</html>
